@@ -1,0 +1,93 @@
+name: DEV Cluster - Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "EKS Cluster Name"
+        required: true
+        default: "zaki-eks-task"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-destroy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production   # 🔒 requires approval
+
+    env:
+      AWS_REGION: us-east-2
+
+    steps:
+      # 📥 Checkout
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ⚙️ Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # 🔐 AWS Auth (OIDC)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.OIDC_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 🔧 Install kubectl (needed for cleanup script)
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      # 🔥 Run cleanup script
+      - name: Run EKS Cleanup Script
+        run: |
+          echo "======================================"
+          echo "Running cleanup script before destroy"
+          echo "======================================"
+
+          chmod +x infra/scripts/cleanup.sh
+
+          export CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
+          export AWS_REGION="${{ env.AWS_REGION }}"
+
+          ./infra/scripts/cleanup.sh
+
+      # 💣 Destroy in reverse order
+      - name: Run Terraform Destroy (ordered)
+        run: |
+          echo "======================================"
+          echo "Starting Terraform Destroy"
+          echo "======================================"
+
+          if [ ! -f infra/setup-order.txt ]; then
+            echo "❌ setup-order.txt not found"
+            exit 1
+          fi
+
+          MODULES=$(grep -v '^#' infra/setup-order.txt | tac)
+
+          for module in $MODULES; do
+            FULL_PATH="infra/$module"
+
+            if [ -d "$FULL_PATH" ]; then
+              echo "--------------------------------------"
+              echo "Destroying $FULL_PATH"
+              echo "--------------------------------------"
+
+              cd $FULL_PATH
+              terraform init
+              terraform destroy -auto-approve
+              cd -
+            else
+              echo "Skipping $FULL_PATH (not found)"
+            fi
+          done
+
+      # ✅ Done
+      - name: Finished
+        run: echo "🔥 Full infrastructure destroyed successfully"
