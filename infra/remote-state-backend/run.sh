@@ -45,10 +45,10 @@ terraform init \
 
 # Perform requested action
 if [[ "$ACTION" == "apply" ]]; then
-  echo "🚀 Applying Terraform configuration..."
+  echo "🚀 Applying Terraform configuration...."
   terraform apply -auto-approve
 else
-  echo "🔍 Planning Terraform configuration..."
+  echo "🔍 Planning Terraform configuration...."
   terraform validate
   terraform fmt
   terraform plan
