@@ -26,7 +26,7 @@ BUCKET="${ACCOUNT_ID}-zaki-eks-task-tfstate"
 
 # Check if the S3 bucket exists
 if aws s3api head-bucket --bucket "${BUCKET}" 2>/dev/null; then
-  echo "✅ Bucket ${BUCKET} already exists. Skipping creation."
+  echo "✅ Bucket ${BUCKET} already exists. Skipping creation.."
 else
   echo "🪣 Bucket ${BUCKET} does not exist. Creating..."
   aws s3api create-bucket \
