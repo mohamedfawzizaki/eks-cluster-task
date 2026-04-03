@@ -1,0 +1,77 @@
+name: DEV Cluster - Terraform Plan
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'infra/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      AWS_REGION: us-east-2
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 🔍 Detect changed Terraform directories
+      - name: Detect Modified Terraform Directories
+        run: |
+          BASE_COMMIT=$(git merge-base origin/main HEAD)
+          CHANGED_FILES=$(git diff --name-only $BASE_COMMIT...HEAD)
+
+          INFRA_DIRS=$(echo "$CHANGED_FILES" \
+            | grep -E '^infra/.+\.tf$' \
+            | xargs -I {} dirname {} \
+            | sort -u || true)
+
+          if [[ -n "$INFRA_DIRS" ]]; then
+            echo "INFRA_CHANGED=true" >> $GITHUB_ENV
+            echo "INFRA_DIRS=$(echo "$INFRA_DIRS" | tr '\n' ' ')" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        if: env.INFRA_CHANGED == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.OIDC_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 🧪 PLAN ONLY
+      - name: Run Terraform Plan (ordered)
+        if: env.INFRA_CHANGED == 'true'
+        run: |
+          MODULES=$(grep -v '^#' infra/setup-order.txt | tr '\n' ' ')
+
+          for module in $MODULES; do
+            FULL_PATH="infra/$module"
+
+            if [[ " $INFRA_DIRS " =~ " $FULL_PATH " ]]; then
+              echo "Planning $FULL_PATH"
+
+              cd $FULL_PATH
+              terraform init
+              terraform validate
+              terraform plan
+              cd -
+            fi
+          done
+
+      - name: No changes detected
+        if: env.INFRA_CHANGED != 'true'
+        run: echo "No Terraform changes detected."
