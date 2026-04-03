@@ -1,8 +1,9 @@
 terraform {
   backend "s3" {
-    bucket  = "727245885999-zaki-eks-task-tfstate"
+    # Leave these empty or generic; we will "inject" them during init
+    bucket  = "" 
     key     = "zaki-terraform-remote-state/terraform.tfstate"
+    region  = ""
     encrypt = true
-    region  = "us-east-2"
   }
 }

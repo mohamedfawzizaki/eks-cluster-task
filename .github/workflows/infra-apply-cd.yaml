@@ -14,9 +14,14 @@ jobs:
   terraform-apply:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: ${{ vars.ENVIRONMENT_STAGE }}
 
     env:
-      AWS_REGION: us-east-2
+      REGION: ${{ vars.REGION }}
+      ENV_NAME: ${{ vars.ENV_NAME }}
+      OIDC_INFRA_ROLE: ${{ secrets.OIDC_INFRA_ROLE }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      REMOTE_STATE_BUCKET_NAME: ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
 
     steps:
       - name: Checkout Repository
@@ -54,9 +59,15 @@ jobs:
         if: env.INFRA_CHANGED == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.OIDC_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.OIDC_INFRA_ROLE }}
+          aws-region: ${{ env.REGION }}
 
+      - name: Setup remote state backend
+        if: env.INFRA_CHANGED == 'true'
+        run: |
+          chmod +x infra/remote-state-backend/run.sh
+          ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
+      
       # 🚀 APPLY
       - name: Run Terraform Apply (ordered)
         if: env.INFRA_CHANGED == 'true'
@@ -67,13 +78,34 @@ jobs:
             FULL_PATH="infra/$module"
 
             if [[ " $INFRA_DIRS " =~ " $FULL_PATH " ]]; then
-              echo "Applying $FULL_PATH"
+              echo "🚀 Applying Module: $FULL_PATH"
+              
+              # Use the module path as the prefix for the state key
+              REMOTE_STATE_KEY="${module}/terraform.tfstate"
+              
+              echo "📊 State Key: $REMOTE_STATE_KEY"
+              echo "--------------------------------------------------------"
 
               cd $FULL_PATH
-              terraform init
+              
+              terraform init \
+                -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
+                -backend-config="region=${{ env.REGION }}" \
+                -backend-config="key=${REMOTE_STATE_KEY}" \
+                -reconfigure
+
               terraform validate
-              terraform plan -out=tfplan
-              terraform apply -auto-approve tfplan
+
+              # Check for environment-specific var file
+              VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
+              if [[ -f "$VAR_FILE" ]]; then
+                echo "📊 Using var-file: $VAR_FILE"
+                terraform apply -auto-approve tfplan
+              else
+                echo "ℹ️ No environment-specific var-file found at $VAR_FILE. Running standard apply."
+                terraform apply -auto-approve tfplan
+              fi
+              
               cd -
             fi
           done

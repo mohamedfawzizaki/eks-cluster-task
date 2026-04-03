@@ -13,8 +13,18 @@ The core of the infrastructure is the Terraform remote state management, which e
     - [run.sh](../infra/remote-state-backend/run.sh): Automates S3 bucket creation and Terraform initialization with backend configurations.
     - [delete.sh](../infra/remote-state-backend/delete.sh): Handles the teardown of the remote state infrastructure, including optional S3 bucket removal.
 
-### 2. Deployment Orchestration
-- **[setup-order.txt](../infra/setup-order.txt)**: Defines the sequential order for applying infrastructure modules. Currently, it only contains `remote-state-backend`.
+### 2. VPC Network Infrastructure (`infra/vpc`)
+The network layer is built using the standard AWS VPC module, optimized for an EKS cluster deployment.
+- **CIDR**: `10.11.0.0/16` in `us-east-2`.
+- **Subnet Layout**:
+    - **Public Subnets**: 2 subnets for Load Balancers and NAT Gateways.
+    - **Private Subnets**: 4 subnets across 2 AZs for EKS worker nodes and internal services.
+- **EKS Readiness**: Subnets are tagged for AWS Load Balancer Controller and Karpenter discovery.
+
+### 3. Deployment Orchestration
+- **[setup-order.txt](../infra/setup-order.txt)**: Defines the sequential order for applying infrastructure modules. It now contains:
+    1. `remote-state-backend`
+    2. `vpc`
 - **[cleanup.sh](../infra/scripts/cleanup.sh)**: A critical utility that cleans up EKS-internal resources (LoadBalancers, PVCs, etc.) before running `terraform destroy`. This prevents "orphaned" resources that could block the deletion of the VPC or EKS cluster.
 
 ---
