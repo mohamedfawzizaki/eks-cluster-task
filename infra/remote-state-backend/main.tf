@@ -1,8 +1,6 @@
 locals {
-  region        = "us-east-2"
-  account_id    = data.aws_caller_identity.current.account_id
-  bucket_name   = "${local.account_id}-zaki-eks-task-tfstate"
-  dynamodb_name = "${local.account_id}-zaki-eks-task-tfstate-lock"
+  bucket_name   = var.remote_state_bucket_name
+  dynamodb_name = var.dynamodb_table_name
 }
 
 data "aws_caller_identity" "current" {}
