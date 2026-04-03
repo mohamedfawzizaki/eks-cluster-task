@@ -13,8 +13,8 @@ crash.*.log
 # password, private keys, and other secrets. These should not be part of version 
 # control as they are data based. If you would like to include them then 
 # you should create a .tfvars.example file
-*.tfvars
-*.tfvars.json
+# *.tfvars
+# *.tfvars.json
 
 # Ignore override files as they are usually used for local overriding.
 # Override files for Terraform should be named either override.tf or 
