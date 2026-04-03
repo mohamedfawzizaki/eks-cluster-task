@@ -36,8 +36,10 @@ jobs:
           CHANGED_FILES=$(git diff --name-only $BASE_COMMIT...HEAD)
 
           INFRA_DIRS=$(echo "$CHANGED_FILES" \
-            | grep -E '^infra/.+\.tf$' \
+            | grep -E '^infra/.+\.(tf|tfvars)$' \
             | xargs -I {} dirname {} \
+            | xargs -I {} bash -c 'd={}; while [[ $d != "." && $d != "infra" ]]; do echo $d; d=$(dirname $d); done' \
+            | grep -v '^infra$' \
             | sort -u || true)
 
           if [[ -n "$INFRA_DIRS" ]]; then
