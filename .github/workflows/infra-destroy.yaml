@@ -96,7 +96,7 @@ jobs:
               terraform init \
                 -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
                 -backend-config="region=${{ env.REGION }}" \
-                -backend-config="dynamodb_table=${{ vars.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}" \
+                -backend-config="dynamodb_table=${{ env.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}" \
                 -backend-config="key=${REMOTE_STATE_KEY}" \
                 -reconfigure
 
