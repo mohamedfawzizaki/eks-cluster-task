@@ -58,6 +58,7 @@ jobs:
           aws-region: ${{ env.REGION }}
 
       - name: Setup remote state backend
+        if: env.INFRA_CHANGED == 'true'
         run: |
           chmod +x infra/remote-state-backend/run.sh
           ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ secrets.REMOTE_STATE_BUCKET_NAME }}

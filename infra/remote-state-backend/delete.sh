@@ -71,6 +71,18 @@ echo "🗑️ Preparing to delete S3 bucket: ${BUCKET_NAME}"
 echo "🌏 Region: ${REGION}"
 echo "--------------------------------------------------------"
 
+
+# Initialize Terraform with backend config
+terraform init \
+  -backend-config="bucket=${BUCKET_NAME}" \
+  -backend-config="key=remote-state-backend/terraform.tfstate" \
+  -backend-config="region=${REGION}" \
+  -backend-config="encrypt=true" \
+  -reconfigure
+
+# Destroy the infrastructure managed by Terraform
+terraform destroy -auto-approve
+
 # Delete all object versions
 echo "🔄 Emptying S3 bucket (versioned objects)..."
 VERSIONS=$(aws s3api list-object-versions --bucket "${BUCKET_NAME}" --output json --query 'Versions[].{Key:Key,VersionId:VersionId}' 2>/dev/null)
