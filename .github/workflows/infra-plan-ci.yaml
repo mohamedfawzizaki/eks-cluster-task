@@ -92,7 +92,7 @@ jobs:
               terraform validate
 
               # Check for environment-specific var file
-              VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
+              VAR_FILE="${{ github.workspace }}/${FULL_PATH}/env/${{ env.ENV_NAME }}.tfvars"
               if [[ -f "$VAR_FILE" ]]; then
                 echo "📊 Using var-file: $VAR_FILE"
                 terraform plan -var-file="$VAR_FILE" -lock=false
