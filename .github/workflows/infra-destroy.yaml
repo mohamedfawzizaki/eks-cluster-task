@@ -16,10 +16,14 @@ jobs:
   terraform-destroy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: production   # 🔒 requires approval
+    environment: ${{ vars.ENVIRONMENT_STAGE }}
 
     env:
-      AWS_REGION: us-east-2
+      REGION: ${{ vars.REGION }}
+      ENV_NAME: ${{ vars.ENV_NAME }}
+      OIDC_INFRA_ROLE: ${{ secrets.OIDC_INFRA_ROLE }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      REMOTE_STATE_BUCKET_NAME: ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
 
     steps:
       # 📥 Checkout
@@ -36,8 +40,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.OIDC_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.OIDC_INFRA_ROLE }}
+          aws-region: ${{ env.REGION }}
 
       # 🔧 Install kubectl (needed for cleanup script)
       - name: Install kubectl
@@ -53,9 +57,14 @@ jobs:
           chmod +x infra/scripts/cleanup.sh
 
           export CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
-          export AWS_REGION="${{ env.AWS_REGION }}"
+          export AWS_REGION="${{ env.REGION }}"
 
           ./infra/scripts/cleanup.sh
+
+      - name: Setup remote state backend
+        run: |
+          chmod +x infra/remote-state-backend/run.sh
+          ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ env.REMOTE_STATE_BUCKET_NAME }}
 
       # 💣 Destroy in reverse order
       - name: Run Terraform Destroy (ordered)
@@ -69,19 +78,40 @@ jobs:
             exit 1
           fi
 
-          MODULES=$(grep -v '^#' infra/setup-order.txt | tac)
+          # Read setup-order.txt in reverse using tac
+          MODULES=$(grep -v '^#' infra/setup-order.txt | tac | tr '\n' ' ')
 
           for module in $MODULES; do
             FULL_PATH="infra/$module"
 
             if [ -d "$FULL_PATH" ]; then
-              echo "--------------------------------------"
-              echo "Destroying $FULL_PATH"
-              echo "--------------------------------------"
+              echo "--------------------------------------------------------"
+              echo "🔥 Destroying Module: $FULL_PATH"
+              
+              # Use the module path as the prefix for the state key
+              REMOTE_STATE_KEY="${module}/terraform.tfstate"
+              
+              echo "📊 State Key: $REMOTE_STATE_KEY"
+              echo "--------------------------------------------------------"
 
               cd $FULL_PATH
-              terraform init
-              terraform destroy -auto-approve
+              
+              terraform init \
+                -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
+                -backend-config="region=${{ env.REGION }}" \
+                -backend-config="key=${REMOTE_STATE_KEY}" \
+                -reconfigure
+
+              # Check for environment-specific var file
+              VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
+              if [[ -f "$VAR_FILE" ]]; then
+                echo "📊 Using var-file: $VAR_FILE"
+                terraform destroy -var-file="$VAR_FILE" -auto-approve
+              else
+                echo "ℹ️ No environment-specific var-file found at $VAR_FILE. Running standard destroy."
+                terraform destroy -auto-approve
+              fi
+              
               cd -
             else
               echo "Skipping $FULL_PATH (not found)"
