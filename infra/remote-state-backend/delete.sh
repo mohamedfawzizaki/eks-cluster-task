@@ -2,7 +2,7 @@
 # Exit on any error
 set -e
 
-# Usage : ./delete.sh --account <ACCOUNT_ID> --region <REGION> --bucket <BUCKET_NAME> --force
+# Usage : ./delete.sh --account <ACCOUNT_ID> --region <REGION> --bucket <BUCKET_NAME> --env <ENV_NAME> --force
 
 # Ensure we are in the script's directory
 cd "$(dirname "$0")"
@@ -11,6 +11,7 @@ cd "$(dirname "$0")"
 ACCOUNT_ID=""
 REGION="us-east-2"
 BUCKET_NAME="zaki-terraform-remote-state"
+ENV_NAME=""
 FORCE=false
 
 # Parse flags
@@ -28,13 +29,17 @@ while [[ $# -gt 0 ]]; do
       BUCKET_NAME="$2"
       shift 2
       ;;
+    --env)
+      ENV_NAME="$2"
+      shift 2
+      ;;
     --force | -y)
       FORCE=true
       shift
       ;;
     *)
       echo "❌ Unknown argument: $1"
-      echo "Usage: $0 [--account ID] [--region REGION] [--bucket NAME] [--force]"
+      echo "Usage: $0 [--account ID] [--region REGION] [--bucket NAME] [--env ENV_NAME] [--force]"
       exit 1
       ;;
   esac
@@ -80,8 +85,14 @@ terraform init \
   -backend-config="encrypt=true" \
   -reconfigure
 
-# Destroy the infrastructure managed by Terraform
-terraform destroy -auto-approve
+# Check if the environment-specific var file exists
+if [[ -f "env/${ENV_NAME}.tfvars" ]]; then
+  echo "📊 Using var-file: env/${ENV_NAME}.tfvars"
+  terraform destroy --var-file="env/${ENV_NAME}.tfvars" --auto-approve
+else
+  echo "ℹ️ No environment-specific var-file found at env/${ENV_NAME}.tfvars. Running standard destroy."
+  terraform destroy --auto-approve
+fi
 
 # Delete all object versions
 echo "🔄 Emptying S3 bucket (versioned objects)..."
