@@ -56,8 +56,8 @@ else
     $( [[ "$REGION" != "us-east-1" ]] && echo "--create-bucket-configuration LocationConstraint=${REGION}" )
 fi
 
-echo "--------------------------------------------------------"
+echo "----------------------------------------------------------"
 echo "👤 AWS Account ID:      ${ACCOUNT_ID}"
 echo "🔏 Remote State Bucket: ${BUCKET_NAME}"
 echo "🌏 Region:              ${REGION}"
-echo "--------------------------------------------------------"
+echo "----------------------------------------------------------"
