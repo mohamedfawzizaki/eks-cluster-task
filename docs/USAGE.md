@@ -31,7 +31,8 @@ To allow GitHub Actions to securely access AWS without long-lived credentials, y
 ## 3. GitHub Repository Secrets
 Navigate to **Settings** -> **Secrets and variables** -> **Actions** in your GitHub repository and add the following secret:
 
-- `OIDC_ROLE`: The ARN of the IAM role created in Step 2.
+- `OIDC_INFRA_ROLE`: The ARN of the IAM role created in Step 2.
+- `REMOTE_STATE_BUCKET_NAME`: The full name of the S3 bucket to be used for the remote state.
 
 ---
 
@@ -45,7 +46,7 @@ The remote state backend MUST be initialized before any other infrastructure.
 2.  **Run the [run.sh](../infra/remote-state-backend/run.sh) script**:
     ```bash
     chmod +x infra/remote-state-backend/run.sh
-    ./infra/remote-state-backend/run.sh apply
+    ./infra/remote-state-backend/run.sh --account <YOUR_ACCOUNT_ID> --region us-east-2 --bucket <YOUR_BUCKET_NAME>
     ```
    This will:
    - Create the S3 bucket (if it doesn't exist).

@@ -10,8 +10,8 @@ The core of the infrastructure is the Terraform remote state management, which e
     - **S3 Bucket**: Stores the `terraform.tfstate` file. Includes versioning and public access blocks for security.
     - **DynamoDB Table**: Provides state locking via a `LockID` attribute to prevent concurrent modifications.
 - **Helper Scripts**:
-    - [run.sh](../infra/remote-state-backend/run.sh): Automates S3 bucket creation and Terraform initialization with backend configurations.
-    - [delete.sh](../infra/remote-state-backend/delete.sh): Handles the teardown of the remote state infrastructure, including optional S3 bucket removal.
+    - [run.sh](../infra/remote-state-backend/run.sh): Automates S3 bucket creation and Terraform initialization. Supports flags: `--account`, `--region`, `--bucket`.
+    - [delete.sh](../infra/remote-state-backend/delete.sh): Handles teardown of the state infrastructure. Supports flags: `--account`, `--region`, `--bucket`, `--env`, `--force`.
 
 ### 2. VPC Network Infrastructure (`infra/vpc`)
 The network layer is built using the standard AWS VPC module, optimized for an EKS cluster deployment.

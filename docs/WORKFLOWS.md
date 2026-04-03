@@ -5,7 +5,7 @@ This guide explains how each workflow in [.github/workflows](../.github/workflow
 ## 1. 🔍 DEV Cluster - Terraform Plan (`infra-plan-ci.yaml`)
 This workflow is used for **Continuous Integration (CI)**. It validates your Terraform code and shows a preview of changes without applying them.
 
--   **Trigger**: Automatically runs when a **Pull Request** is opened, updated, or reopened against the `main` branch, provided there are changes in the `infra/` directory.
+-   **Trigger**: Automatically runs when a **Pull Request** is opened, updated, or reopened against the `main` branch. It detects changes in `.tf` and `.tfvars` files.
 -   **How to Run**:
     1.  Create a new feature branch: `git checkout -b feature/new-infra`.
     2.  Make changes to Terraform files in `infra/`.
