@@ -23,6 +23,7 @@ jobs:
       ENV_NAME: ${{ vars.ENV_NAME }}
       OIDC_INFRA_ROLE: ${{ secrets.OIDC_INFRA_ROLE }}
       ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      REMOTE_STATE_BUCKET_NAME: ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
 
     steps:
       # 📥 Checkout
@@ -60,6 +61,11 @@ jobs:
 
           ./infra/scripts/cleanup.sh
 
+      - name: Setup remote state backend
+        run: |
+          chmod +x infra/remote-state-backend/run.sh
+          ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ env.REMOTE_STATE_BUCKET_NAME }}
+
       # 💣 Destroy in reverse order
       - name: Run Terraform Destroy (ordered)
         run: |
@@ -67,26 +73,23 @@ jobs:
           echo "Starting Terraform Destroy"
           echo "======================================"
 
-          BUCKET="${{ env.ACCOUNT_ID }}-${{ env.REMOTE_STATE_BUCKET_PREFIX }}"
-
           if [ ! -f infra/setup-order.txt ]; then
             echo "❌ setup-order.txt not found"
             exit 1
           fi
 
           # Read setup-order.txt in reverse using tac
-          tac infra/setup-order.txt | while read -r module_path || [ -n "$module_path" ]; do
-            # Skip comments and empty lines
-            [[ "$module_path" =~ ^#.*$ || -z "$module_path" ]] && continue
+          MODULES=$(grep -v '^#' infra/setup-order.txt | tac | tr '\n' ' ')
 
-            FULL_PATH="infra/$module_path"
+          for module in $MODULES; do
+            FULL_PATH="infra/$module"
 
             if [ -d "$FULL_PATH" ]; then
               echo "--------------------------------------------------------"
               echo "🔥 Destroying Module: $FULL_PATH"
               
               # Use the module path as the prefix for the state key
-              REMOTE_STATE_KEY="${module_path}/terraform.tfstate"
+              REMOTE_STATE_KEY="${module}/terraform.tfstate"
               
               echo "📊 State Key: $REMOTE_STATE_KEY"
               echo "--------------------------------------------------------"
@@ -94,7 +97,7 @@ jobs:
               cd $FULL_PATH
               
               terraform init \
-                -backend-config="bucket=${BUCKET}" \
+                -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
                 -backend-config="region=${{ env.REGION }}" \
                 -backend-config="key=${REMOTE_STATE_KEY}" \
                 -reconfigure

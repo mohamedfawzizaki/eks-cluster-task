@@ -100,13 +100,15 @@ jobs:
               VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
               if [[ -f "$VAR_FILE" ]]; then
                 echo "📊 Using var-file: $VAR_FILE"
+                terraform plan -var-file="$VAR_FILE" -out=tfplan
                 terraform apply -auto-approve tfplan
               else
                 echo "ℹ️ No environment-specific var-file found at $VAR_FILE. Running standard apply."
+                terraform plan -out=tfplan
                 terraform apply -auto-approve tfplan
               fi
-              
-              cd -
+               
+               cd -
             fi
           done
 
