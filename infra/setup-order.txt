@@ -1,3 +1,4 @@
 # Infra/setup-order.txt
 # <module_path>
-remote-state-backend
+# VPC
+vpc

@@ -24,6 +24,7 @@ jobs:
       OIDC_INFRA_ROLE: ${{ secrets.OIDC_INFRA_ROLE }}
       ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
       REMOTE_STATE_BUCKET_NAME: ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
+      DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING: ${{ secrets.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}
 
     steps:
       # 📥 Checkout
@@ -48,23 +49,19 @@ jobs:
         uses: azure/setup-kubectl@v4
 
       # 🔥 Run cleanup script
-      - name: Run EKS Cleanup Script
-        run: |
-          echo "======================================"
-          echo "Running cleanup script before destroy"
-          echo "======================================"
+      # - name: Run EKS Cleanup Script
+      #   run: |
+      #     echo "======================================"
+      #     echo "Running cleanup script before destroy"
+      #     echo "======================================"
 
-          chmod +x infra/scripts/cleanup.sh
+      #     chmod +x infra/scripts/cleanup.sh
 
-          export CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
-          export AWS_REGION="${{ env.REGION }}"
+      #     export CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
+      #     export AWS_REGION="${{ env.REGION }}"
 
-          ./infra/scripts/cleanup.sh
+      #     ./infra/scripts/cleanup.sh
 
-      - name: Setup remote state backend
-        run: |
-          chmod +x infra/remote-state-backend/run.sh
-          ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ env.REMOTE_STATE_BUCKET_NAME }}
 
       # 💣 Destroy in reverse order
       - name: Run Terraform Destroy (ordered)
@@ -99,20 +96,21 @@ jobs:
               terraform init \
                 -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
                 -backend-config="region=${{ env.REGION }}" \
+                -backend-config="dynamodb_table=${{ vars.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}" \
                 -backend-config="key=${REMOTE_STATE_KEY}" \
                 -reconfigure
 
-              # Check for environment-specific var file
-              VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
-              if [[ -f "$VAR_FILE" ]]; then
-                echo "📊 Using var-file: $VAR_FILE"
-                terraform destroy -var-file="$VAR_FILE" -auto-approve
-              else
-                echo "ℹ️ No environment-specific var-file found at $VAR_FILE. Running standard destroy."
-                terraform destroy -auto-approve
-              fi
-              
-              cd -
+               # Check for environment-specific var file
+               VAR_FILE="${{ github.workspace }}/${FULL_PATH}/env/${{ env.ENV_NAME }}.tfvars"
+               if [[ -f "$VAR_FILE" ]]; then
+                 echo "📊 Using var-file: $VAR_FILE"
+                 terraform destroy -var-file="$VAR_FILE" -auto-approve
+               else
+                 echo "ℹ️ No environment-specific var-file found at $VAR_FILE. Running standard destroy."
+                 terraform destroy -auto-approve
+               fi
+               
+               cd ${{ github.workspace }}
             else
               echo "Skipping $FULL_PATH (not found)"
             fi

@@ -22,6 +22,7 @@ jobs:
       OIDC_INFRA_ROLE: ${{ secrets.OIDC_INFRA_ROLE }}
       ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
       REMOTE_STATE_BUCKET_NAME: ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
+      DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING: ${{ secrets.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}
 
     steps:
       - name: Checkout Repository
@@ -64,11 +65,6 @@ jobs:
           role-to-assume: ${{ env.OIDC_INFRA_ROLE }}
           aws-region: ${{ env.REGION }}
 
-      - name: Setup remote state backend
-        if: env.INFRA_CHANGED == 'true'
-        run: |
-          chmod +x infra/remote-state-backend/run.sh
-          ./infra/remote-state-backend/run.sh --account ${{ env.ACCOUNT_ID }} --region ${{ env.REGION }} --bucket ${{ secrets.REMOTE_STATE_BUCKET_NAME }}
       
       # 🚀 APPLY
       - name: Run Terraform Apply (ordered)
@@ -93,13 +89,14 @@ jobs:
               terraform init \
                 -backend-config="bucket=${{ env.REMOTE_STATE_BUCKET_NAME }}" \
                 -backend-config="region=${{ env.REGION }}" \
+                -backend-config="dynamodb_table=${{ env.DYNAMODB_TABLE_NAME_FOR_REMOTE_STATE_LOCKING }}" \
                 -backend-config="key=${REMOTE_STATE_KEY}" \
                 -reconfigure
 
               terraform validate
 
               # Check for environment-specific var file
-              VAR_FILE="env/${{ env.ENV_NAME }}.tfvars"
+              VAR_FILE="${{ github.workspace }}/${FULL_PATH}/env/${{ env.ENV_NAME }}.tfvars"
               if [[ -f "$VAR_FILE" ]]; then
                 echo "📊 Using var-file: $VAR_FILE"
                 terraform plan -var-file="$VAR_FILE" -out=tfplan
@@ -110,7 +107,7 @@ jobs:
                 terraform apply -auto-approve tfplan
               fi
                
-               cd -
+              cd ${{ github.workspace }}
             fi
           done
 
