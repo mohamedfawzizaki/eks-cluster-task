@@ -2,7 +2,7 @@
 
 This project implements an automated infrastructure setup for an AWS EKS cluster, currently focusing on the foundational remote state management.
 
-## 🏗️ Infrastructure Architecture
+## 🏗️ Infrastructure Architecture:
 
 ### 1. Remote State Backend (`infra/remote-state-backend`)
 The core of the infrastructure is the Terraform remote state management, which ensures state consistency and locking across multiple environments/users.
