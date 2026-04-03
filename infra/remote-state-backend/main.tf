@@ -1,4 +1,5 @@
 locals {
+  region = var.region
   bucket_name   = var.remote_state_bucket_name
   dynamodb_name = var.dynamodb_table_name
 }
