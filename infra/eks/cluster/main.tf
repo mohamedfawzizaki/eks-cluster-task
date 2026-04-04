@@ -46,7 +46,7 @@ module "eks" {
     }
   }
   authentication_mode                      = "API_AND_CONFIG_MAP"
-  enable_cluster_creator_admin_permissions = false
+  enable_cluster_creator_admin_permissions = true
   enable_irsa                              = true
   access_entries = {
     sso-admin = {
