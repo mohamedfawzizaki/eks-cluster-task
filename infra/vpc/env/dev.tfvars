@@ -1,5 +1,5 @@
 # Project Information
-vpc_name     = "zaki-eks-task_vpc"
+vpc_name     = "zaki-eks-task-vpc"
 cluster_name = "zaki-eks-cluster"
 project_name = "zaki-eks-cluster"
 environment  = "dev"
