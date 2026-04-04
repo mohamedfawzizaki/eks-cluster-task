@@ -2,3 +2,6 @@
 # <module_path>
 # VPC
 vpc
+
+# IAM
+iam/eks/cluster-access
