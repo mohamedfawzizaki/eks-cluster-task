@@ -7,30 +7,41 @@ echo "🚨 Starting EKS Cleanup Before Destroy"
 echo "======================================"
 
 # 🔹 Config
-CLUSTER_NAME=${CLUSTER_NAME:-"zaki-eks-task"}
+CLUSTER_NAME=${CLUSTER_NAME:-"zaki-eks-cluster"}
 REGION=${AWS_REGION:-"us-east-2"}
+AWS_PROFILE=${AWS_PROFILE:-"AdministratorAccess-727245885999"}
 
 echo "Cluster: $CLUSTER_NAME"
 echo "Region: $REGION"
+echo "Profile: $AWS_PROFILE"
 
 # 🔹 Update kubeconfig
 echo "Updating kubeconfig..."
-aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME --profile $AWS_PROFILE
 
 # 🔹 Check cluster access
 echo "Checking cluster connectivity..."
-kubectl get nodes || { echo "❌ Cannot access cluster"; exit 1; }
+kubectl get nodes || { echo "❌ Cannot access cluster. It might already be destroyed."; exit 1; }
 
-# 🔥 Delete LoadBalancers (services)
-echo "Deleting LoadBalancer services..."
-kubectl delete svc --all -A || true
-
-# 🔥 Delete Ingresses
-echo "Deleting ingresses..."
+# 🔥 Delete Ingresses (ALBs)
+echo "Deleting Ingress resources (ALBs)..."
 kubectl delete ingress --all -A || true
 
+# 🔥 Delete LoadBalancers (NLBs/Classic)
+echo "Safely deleting only LoadBalancer services..."
+kubectl get svc -A -o go-template='{{range .items}}{{if eq .spec.type "LoadBalancer"}}{{.metadata.namespace}} {{.metadata.name}}{{"\n"}}{{end}}{{end}}' | while read ns svc; do 
+  if [ -n "$svc" ]; then
+    echo "Deleting LoadBalancer: $svc in namespace $ns"
+    kubectl delete svc -n "$ns" "$svc"
+  fi
+done
+
+# ⏳ Wait for AWS Load Balancers to be physically deleted
+echo "Waiting for AWS to physically destroy Load Balancers (this can take ~1 minute)..."
+sleep 60
+
 # 🔥 Delete PVCs (EBS volumes)
-echo "Deleting persistent volume claims..."
+echo "Deleting persistent volume claims (EBS drives)..."
 kubectl delete pvc --all -A || true
 
 # 🔥 Delete Helm releases (if Helm used)
@@ -46,23 +57,16 @@ fi
 # 🔥 Delete all non-system namespaces
 echo "Deleting custom namespaces..."
 kubectl get ns -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | while read ns; do
-  if [[ "$ns" != "kube-system" && "$ns" != "kube-public" && "$ns" != "default" ]]; then
+  if [[ "$ns" != "kube-system" && "$ns" != "kube-public" && "$ns" != "kube-node-lease" && "$ns" != "default" && "$ns" != "dev" ]]; then
     echo "Deleting namespace: $ns"
     kubectl delete ns $ns --ignore-not-found
   fi
 done
 
-# ⏳ Wait for resources cleanup
-echo "Waiting for resources to terminate..."
+
+# ⏳ Wait for final resources cleanup
+echo "Waiting 30s for resources to fully terminate..."
 sleep 30
 
-# 🔍 Final check
-echo "Remaining services:"
-kubectl get svc -A || true
-
-echo "Remaining PVCs:"
-kubectl get pvc -A || true
-
-echo "======================================"
-echo "✅ Cleanup completed successfully"
+echo "✅ Cleanup completed successfully. You may now run 'terraform destroy'."
 echo "======================================"
