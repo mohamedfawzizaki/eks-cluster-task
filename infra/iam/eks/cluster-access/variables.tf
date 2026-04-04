@@ -18,3 +18,8 @@ variable "github_repo" {
   description = "GitHub repository name (e.g., user/repo)"
   type        = string
 }
+
+variable "github_oidc_role_name" {
+  description = "Name of the IAM role for GitHub Actions OIDC"
+  type        = string
+}
