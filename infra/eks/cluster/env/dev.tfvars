@@ -6,7 +6,7 @@ environment             = "dev"
 
 remote_state_bucket = "zaki-terraform-remote-state"
 
-vpc_remote_state_key    = "vpc/vpc.tfstate"
+vpc_remote_state_key    = "vpc/terraform.tfstate"
 vpc_remote_state_region = "us-east-2"
 
 iam_remote_state_key    = "iam/eks/cluster-access/terraform.tfstate"
