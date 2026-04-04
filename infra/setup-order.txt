@@ -5,3 +5,6 @@ vpc
 
 # IAM
 iam/eks/cluster-access
+
+# EKS
+eks/cluster
