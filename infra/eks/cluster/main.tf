@@ -46,49 +46,9 @@ module "eks" {
     }
   }
   authentication_mode                      = "API_AND_CONFIG_MAP"
-  enable_cluster_creator_admin_permissions = false
+  enable_cluster_creator_admin_permissions = true
   enable_irsa                              = true
-  access_entries = {
-    sso-admin = {
-      kubernetes_groups = []
-      principal_arn     = local.admin_sso_role
-      policy_associations = {
-        policy-one = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            namespaces = []
-            type       = "cluster"
-          }
-        }
-      }
-    },
-    sso-power = {
-      kubernetes_groups = []
-      principal_arn     = local.power_sso_role
-      policy_associations = {
-        policy-one = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            namespaces = []
-            type       = "cluster"
-          }
-        }
-      }
-    },
-    oidc-admin = {
-      kubernetes_groups = []
-      principal_arn     = local.admin_oidc_role
-      policy_associations = {
-        policy-one = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            namespaces = []
-            type       = "cluster"
-          }
-        }
-      }
-    }
-  }
+  access_entries = {}
   cluster_endpoint_public_access_cidrs = [
     "0.0.0.0/0",
     format("%s/%s", data.terraform_remote_state.vpc.outputs.nat_public_ips[0], "32")
