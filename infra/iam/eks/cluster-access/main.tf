@@ -4,7 +4,7 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 resource "aws_iam_role" "zaki_eks_cluster_admin_githubactions_oidc" {
-  name = "zaki_eks_cluster_admin_githubactions_oidc"
+  name = var.github_oidc_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -26,7 +26,7 @@ resource "aws_iam_role" "zaki_eks_cluster_admin_githubactions_oidc" {
 }
 
 resource "aws_iam_role_policy_attachment" "github_oidc_admin" {
-  role       = aws_iam_role.eks_githubactions_oidc.name
+  role       = aws_iam_role.zaki_eks_cluster_admin_githubactions_oidc.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess" # Or more restrictive EKS admin policies
 }
 
