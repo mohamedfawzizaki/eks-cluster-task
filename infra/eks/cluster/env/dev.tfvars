@@ -14,7 +14,7 @@ iam_remote_state_region = "us-east-2"
 
 efs_file_system_id      = "fs-04d7482bc3ac608d3"
 tags = {
-  Owners = "DevOps-Team"
+  Owners = "DevOpsTeam"
 }
 
 eks_cluster_worker_nodes_min_size     = 2
