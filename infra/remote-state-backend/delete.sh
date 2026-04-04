@@ -2,25 +2,21 @@
 # Exit on any error
 set -e
 
-# Usage : ./delete.sh --account <ACCOUNT_ID> --region <REGION> --bucket <BUCKET_NAME> --env <ENV_NAME> --force
+# Usage : ./delete.sh --profile <PROFILE> --region <REGION> --bucket <BUCKET_NAME> --env <ENV_NAME> --force
 
 # Ensure we are in the script's directory
 cd "$(dirname "$0")"
 
 # Default values
-ACCOUNT_ID=""
 REGION="us-east-2"
 BUCKET_NAME="zaki-terraform-remote-state"
 ENV_NAME=""
 FORCE=false
+AWS_PROFILE=""
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --account)
-      ACCOUNT_ID="$2"
-      shift 2
-      ;;
     --region)
       REGION="$2"
       shift 2
@@ -37,26 +33,27 @@ while [[ $# -gt 0 ]]; do
       FORCE=true
       shift
       ;;
+    --profile)
+      AWS_PROFILE="$2"
+      shift 2
+      ;;
     *)
       echo "❌ Unknown argument: $1"
-      echo "Usage: $0 [--account ID] [--region REGION] [--bucket NAME] [--env ENV_NAME] [--force]"
+      echo "Usage: $0 [--region REGION] [--bucket NAME] [--env ENV_NAME] [--profile PROFILE] [--force]"
       exit 1
       ;;
   esac
 done
 
-# Fetch ACCOUNT_ID for display/context if not provided
-if [ -z "$ACCOUNT_ID" ]; then
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
-  if [ $? -ne 0 ]; then
-    echo "❌ Error: Could not get AWS caller identity."
-    echo "Make sure you have valid credentials. If you are using a profile, run: export AWS_PROFILE=your-profile"
-    exit 1
-  fi
+# Setup AWS CLI command with optional profile
+AWS_CMD="aws"
+if [ -n "$AWS_PROFILE" ]; then
+  AWS_CMD="aws --profile $AWS_PROFILE"
+  export AWS_PROFILE
 fi
 
 # Check if the S3 bucket exists (required for deletion)
-if ! aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
+if ! $AWS_CMD s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
   echo "ℹ️ Bucket ${BUCKET_NAME} does not exist. Nothing to delete."
   exit 0
 fi
@@ -96,19 +93,19 @@ fi
 
 # Delete all object versions
 echo "🔄 Emptying S3 bucket (versioned objects)..."
-VERSIONS=$(aws s3api list-object-versions --bucket "${BUCKET_NAME}" --output json --query 'Versions[].{Key:Key,VersionId:VersionId}' 2>/dev/null)
+VERSIONS=$($AWS_CMD s3api list-object-versions --bucket "${BUCKET_NAME}" --output json --query 'Versions[].{Key:Key,VersionId:VersionId}' 2>/dev/null)
 if [ "$VERSIONS" != "null" ] && [ -n "$VERSIONS" ]; then
-  aws s3api delete-objects --bucket "${BUCKET_NAME}" --delete "{\"Objects\":$VERSIONS}" >/dev/null
+  $AWS_CMD s3api delete-objects --bucket "${BUCKET_NAME}" --delete "{\"Objects\":$VERSIONS}" >/dev/null
 fi
 
 # Delete all delete markers
 echo "🔄 Removing delete markers..."
-MARKERS=$(aws s3api list-object-versions --bucket "${BUCKET_NAME}" --output json --query 'DeleteMarkers[].{Key:Key,VersionId:VersionId}' 2>/dev/null)
+MARKERS=$($AWS_CMD s3api list-object-versions --bucket "${BUCKET_NAME}" --output json --query 'DeleteMarkers[].{Key:Key,VersionId:VersionId}' 2>/dev/null)
 if [ "$MARKERS" != "null" ] && [ -n "$MARKERS" ]; then
-  aws s3api delete-objects --bucket "${BUCKET_NAME}" --delete "{\"Objects\":$MARKERS}" >/dev/null
+  $AWS_CMD s3api delete-objects --bucket "${BUCKET_NAME}" --delete "{\"Objects\":$MARKERS}" >/dev/null
 fi
 
 echo "🗑️ Deleting S3 bucket ${BUCKET_NAME}..."
-aws s3 rb s3://${BUCKET_NAME} --force
+$AWS_CMD s3 rb s3://${BUCKET_NAME} --force
 
 echo "✅ Done. Remote state infrastructure cleared."

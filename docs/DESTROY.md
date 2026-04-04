@@ -27,7 +27,7 @@ After all infrastructure modules are destroyed, you can delete the state bucket 
     ```
 2.  Run the deletion script:
     ```bash
-    ./delete.sh --env dev --force
+    ./delete.sh --profile <PROFILE> --env <ENV_NAME> --region <REGION> --bucket <BUCKET_NAME> --force
     ```
     *This script empties the S3 bucket (including all versions), deletes the bucket, and tears down the DynamoDB table.*
 

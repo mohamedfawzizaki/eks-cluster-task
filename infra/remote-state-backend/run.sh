@@ -1,25 +1,21 @@
 #!/bin/bash
 set -e  # Exit immediately on any command failure
 
-# Usage : ./run.sh --action <plan|apply> --account <ACCOUNT_ID> --region <REGION> --bucket <BUCKET_NAME>
+# Usage : ./run.sh --action <plan|apply> --profile <PROFILE> --env <ENV_NAME> --region <REGION> --bucket <BUCKET_NAME>
 
 # Ensure we are in the script's directory
 cd "$(dirname "$0")"
 
 # Default values
 ACTION=""
-ACCOUNT_ID=""
 REGION="us-east-2"
 BUCKET_NAME=""
 ENV_NAME="dev"
+AWS_PROFILE=""
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --account)
-      ACCOUNT_ID="$2"
-      shift 2
-      ;;
     --action)
       ACTION="$2"
       shift 2
@@ -32,36 +28,36 @@ while [[ $# -gt 0 ]]; do
       BUCKET_NAME="$2"
       shift 2
       ;;
+    --profile)
+      AWS_PROFILE="$2"
+      shift 2
+      ;;
     *)
       echo "❌ Unknown argument: $1"
-      echo "Usage: $0 [--account ID] [--region REGION] [--bucket NAME]"
+      echo "Usage: $0 [--action plan|apply] [--region REGION] [--bucket NAME] [--profile PROFILE]"
       exit 1
       ;;
   esac
 done
 
-# Fetch ACCOUNT_ID for display/context if not provided
-if [ -z "$ACCOUNT_ID" ]; then
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
-  if [ $? -ne 0 ]; then
-    echo "❌ Error: Could not get AWS caller identity."
-    echo "Make sure you have valid credentials. If you are using a profile, run: export AWS_PROFILE=your-profile"
-    exit 1
-  fi
-fi
-
-
 # Fallback to dynamic names if not provided
 if [ -z "$BUCKET_NAME" ]; then
-  BUCKET_NAME="${ACCOUNT_ID}-zaki-eks-task-tfstate"
+  BUCKET_NAME="zaki-terraform-remote-state"
+fi
+
+# Setup AWS CLI command with optional profile
+AWS_CMD="aws"
+if [ -n "$AWS_PROFILE" ]; then
+  AWS_CMD="aws --profile $AWS_PROFILE"
+  export AWS_PROFILE
 fi
 
 # Check if the S3 bucket exists
-if aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
+if $AWS_CMD s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
   echo "✅ Bucket ${BUCKET_NAME} already exists."
 else
   echo "🪣 Bucket ${BUCKET_NAME} does not exist. Creating..."
-  aws s3api create-bucket \
+  $AWS_CMD s3api create-bucket \
     --bucket "${BUCKET_NAME}" \
     --region "${REGION}" \
     $( [[ "$REGION" != "us-east-1" ]] && echo "--create-bucket-configuration LocationConstraint=${REGION}" )
@@ -103,6 +99,5 @@ echo "✅ Done. Remote state infrastructure is ready."
 # bucket name: zaki-terraform-remote-state
 echo "bucket name: $BUCKET_NAME"
 echo "region: $REGION"
-echo "account id: $ACCOUNT_ID"
 echo "terraform state key: remote-state-backend/terraform.tfstate"
 echo "DynamoDB table name: zaki-terraform-remote-state-lock-table"
