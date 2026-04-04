@@ -19,13 +19,13 @@ locals {
 ################################################################################
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.31.1"
+  version = "~> 21.0"
 
-  cluster_name                             = local.name
-  cluster_version                          = local.cluster_version
-  cluster_endpoint_private_access          = true
-  cluster_endpoint_public_access           = true
-  cluster_addons = {
+  name                             = local.name
+  kubernetes_version               = local.cluster_version
+  endpoint_private_access          = true
+  endpoint_public_access           = true
+  addons = {
     coredns = {
       most_recent = true
     }
@@ -89,20 +89,20 @@ module "eks" {
       }
     }
   }
-  cluster_endpoint_public_access_cidrs = [
+  endpoint_public_access_cidrs = [
     "0.0.0.0/0",
     format("%s/%s", data.terraform_remote_state.vpc.outputs.nat_public_ips[0], "32")
   ]
 
   # enable only authenticator logs for cost management
-  cluster_enabled_log_types = [
+  enabled_log_types = [
     "authenticator"
   ]
 
   create_kms_key                = true
   kms_key_description           = "KMS Secrets encryption for Zaki EKS cluster."
   kms_key_enable_default_policy = true
-  cluster_encryption_config = {
+  encryption_config = {
     resources = ["secrets"]
   }
 
@@ -111,7 +111,7 @@ module "eks" {
   # Self managed node groups will not automatically create the aws-auth configmap so we need to
 
   # Extend cluster security group rules
-  cluster_security_group_additional_rules = {
+  security_group_additional_rules = {
     ingress_nodes_ephemeral_ports_tcp = {
       description = " To master"
       protocol    = "tcp"
@@ -151,19 +151,13 @@ module "eks" {
     }
   }
 
-  self_managed_node_group_defaults = {
-    create_security_group = false
-
-    # enable discovery of autoscaling groups by cluster-autoscaler
-    autoscaling_group_tags = {
-      "k8s.io/cluster-autoscaler/enabled" : true,
-      "k8s.io/cluster-autoscaler/${local.name}" : "owned",
-    }
-  }
-
   self_managed_node_groups = {
 
     standard-workers = {
+      autoscaling_group_tags = {
+        "k8s.io/cluster-autoscaler/enabled" : "true",
+        "k8s.io/cluster-autoscaler/${local.name}" : "owned",
+      }
       name            = "${local.name}-self-managed-workers"
       use_name_prefix = false
       subnet_ids      = data.terraform_remote_state.vpc.outputs.private_subnets
@@ -189,53 +183,55 @@ module "eks" {
           on_demand_percentage_above_base_capacity = 0
           spot_allocation_strategy = "capacity-optimized-prioritized"
         }
-        override = [
-          {
-            instance_type     = "m5.xlarge"
-            weighted_capacity = "1"
-            priority          = 9
-          },
-          {
-            instance_type     = "m5.2xlarge"
-            weighted_capacity = "2"
-            priority          = 8
-          },
-          {
-            instance_type     = "m6a.2xlarge"
-            weighted_capacity = "2"
-            priority          = 7
-          },
-          {
-            instance_type     = "t3.xlarge"
-            weighted_capacity = "1"
-            priority          = 6
-          },
-          {
-            instance_type     = "c5.xlarge"
-            weighted_capacity = "1"
-            priority          = 5
-          },
-          {
-            instance_type     = "c5.2xlarge"
-            weighted_capacity = "2"
-            priority          = 4
-          },
-          {
-            instance_type     = "c6a.2xlarge"
-            weighted_capacity = "2"
-            priority          = 3
-          },
-          {
-            instance_type     = "t3.2xlarge"
-            weighted_capacity = "2"
-            priority          = 2
-          },
-          {
-            instance_type     = "t3a.2xlarge"
-            weighted_capacity = "2"
-            priority          = 1
-          }
-        ]
+        launch_template = {
+          override = [
+            {
+              instance_type     = "m5.xlarge"
+              weighted_capacity = "1"
+              priority          = 9
+            },
+            {
+              instance_type     = "m5.2xlarge"
+              weighted_capacity = "2"
+              priority          = 8
+            },
+            {
+              instance_type     = "m6a.2xlarge"
+              weighted_capacity = "2"
+              priority          = 7
+            },
+            {
+              instance_type     = "t3.xlarge"
+              weighted_capacity = "1"
+              priority          = 6
+            },
+            {
+              instance_type     = "c5.xlarge"
+              weighted_capacity = "1"
+              priority          = 5
+            },
+            {
+              instance_type     = "c5.2xlarge"
+              weighted_capacity = "2"
+              priority          = 4
+            },
+            {
+              instance_type     = "c6a.2xlarge"
+              weighted_capacity = "2"
+              priority          = 3
+            },
+            {
+              instance_type     = "t3.2xlarge"
+              weighted_capacity = "2"
+              priority          = 2
+            },
+            {
+              instance_type     = "t3a.2xlarge"
+              weighted_capacity = "2"
+              priority          = 1
+            }
+          ]
+        }
       }
 
       # ami_id               = local.eks_ami_id

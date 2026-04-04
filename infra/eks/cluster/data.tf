@@ -24,6 +24,6 @@ data "aws_ami" "eks_default" {
 
   filter {
     name   = "name"
-    values = ["amazon-eks-node-${local.cluster_version}-v*"]
+    values = ["amazon-eks-node-al2023-x86_64-standard-${local.cluster_version}-v*"]
   }
 }
