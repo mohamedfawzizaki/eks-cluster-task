@@ -171,8 +171,10 @@ module "eks" {
           kind: NodeConfig
           spec:
             kubelet:
+              config:
+                maxPods: 110
               flags:
-                - --node-labels=node.kubernetes.io/lifecycle=spot
+                - --node-labels=node.kubernetes.io/lifecycle=spot,group=standard-workers
         EOT
         content_type = "application/node.eks.aws"
       }]
@@ -236,15 +238,6 @@ module "eks" {
 
       # ami_id               = local.eks_ami_id
       ami_id               = local.eks_ami_id
-      bootstrap_extra_args = "--kubelet-extra-args '--max-pods=110 --node-labels group=standard-workers'"
-
-      pre_bootstrap_user_data         = <<-EOT
-      export CONTAINER_RUNTIME="containerd"
-      export USE_MAX_PODS=false
-      EOT
-      post_bootstrap_user_data        = <<-EOT
-      echo "you are free little kubelet!"
-      EOT
       # instance_type                   = "t3.large"
       launch_template_name            = "self-${local.name}"
       launch_template_use_name_prefix = true
