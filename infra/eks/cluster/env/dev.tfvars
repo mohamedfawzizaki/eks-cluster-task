@@ -1,7 +1,7 @@
 aws_region              = "us-east-2"
 account_id              = "727245885999"
 cluster_name            = "zaki-eks-cluster"
-cluster_version         = "1.34"
+cluster_version         = "1.33"
 environment             = "dev"
 
 remote_state_bucket = "zaki-terraform-remote-state"
