@@ -17,6 +17,6 @@ tags = {
   Owners = "DevOpsTeam"
 }
 
-eks_cluster_worker_nodes_min_size     = 2
+eks_cluster_worker_nodes_min_size     = 1
 eks_cluster_worker_nodes_max_size     = 2
 eks_cluster_worker_nodes_desired_size = 2
